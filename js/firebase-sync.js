@@ -84,6 +84,13 @@ async function pushRecords(records) {
 window.FashionCloud = {
   signIn() {
     return signInWithPopup(auth, provider).catch(err => {
+      // 使用者自己關掉登入彈窗、或分頁切到背景導致彈窗被系統關掉，
+      // 這是很正常的操作，不算錯誤，不用嚇使用者。
+      const benign = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+      if (benign.includes(err?.code)) {
+        console.info('登入視窗已關閉，未完成登入。');
+        return;
+      }
       console.error(err);
       window.FashionCloud._onError?.(err);
     });

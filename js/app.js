@@ -72,7 +72,10 @@ function persist() {
 window.addEventListener("fashionCloudReady", () => {
   window.FashionCloud.onAuthChange(updateAuthUI);
   window.FashionCloud.onRemoteUpdate(handleRemoteRecords);
-  window.FashionCloud._onError = (err) => setSyncStatus("error", "❌ " + (err?.message || err));
+  // 登入/登出過程的錯誤用會自動消失的 toast 提示，不要寫進「同步狀態」
+  // 那個常駐欄位——那裡是給「最後編輯者」用的，被錯誤訊息卡住的話，
+  // 使用者會一直看到舊的紅字，還以為資料一直同步失敗。
+  window.FashionCloud._onError = (err) => showToast("❌ " + (err?.message || err));
 });
 
 // ── Build slot form ──
