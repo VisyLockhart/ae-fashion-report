@@ -39,10 +39,11 @@ function updateAuthUI(user) {
   }
 }
 
-// 雲端資料變動時（登入當下的第一筆快照、或其他裝置寫入後）套用到畫面
-function handleRemoteRecords(remoteRecords) {
-  if (remoteRecords === null) {
-    // 這個帳號在雲端還沒有任何資料：把目前本機資料視為初始值，推一份上去
+// 雲端資料變動時（登入當下的第一筆快照、或其他共編者寫入後）套用到畫面
+// data 格式：{ records, updatedAt, updatedBy } 或 null（共用文件還沒建立過）
+function handleRemoteRecords(data) {
+  if (data === null) {
+    // 共用文件還沒有任何資料：把目前本機資料視為初始值，推一份上去
     if (records.length) {
       window.FashionCloud.pushRecords(records).catch(err => {
         setSyncStatus("error", "❌ 初始上傳失敗：" + (err?.message || err));
@@ -50,10 +51,11 @@ function handleRemoteRecords(remoteRecords) {
     }
     return;
   }
-  records = remoteRecords;
+  records = data.records;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
   render();
-  setSyncStatus("ok", "✅ 已同步（雲端）");
+  const who = data.updatedBy ? `（最後編輯：${data.updatedBy}）` : "";
+  setSyncStatus("ok", `✅ 已同步${who}`);
 }
 
 // ── 儲存：本機 localStorage 一律先寫入（離線也能用），登入時再同步推上雲端 ──

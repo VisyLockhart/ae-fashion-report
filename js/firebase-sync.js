@@ -1,14 +1,16 @@
 // ────────────────────────────────────────────────────────────────
-// FashionReport 雲端同步層
+// FashionReport 雲端同步層（共編模式）
 //
-// 設計原則（吸取前一版工具的教訓）：
-// 1. 不用「自己產生的隨機裝置 ID」當帳號密碼 —— 改用 Firebase Authentication
-//    的 Google 登入，帳號身分由 Google/Firebase 簽發，無法偽造、可跨裝置使用。
-// 2. Firestore 安全規則（見專案根目錄 firestore.rules）只允許
-//    request.auth.uid 等於文件路徑上的 uid 的人讀寫自己的資料，
-//    不是任何人都能讀寫任意使用者的資料。
-// 3. apiKey 這類設定值公開沒關係（Firebase Web 設定本來就設計成可公開），
-//    真正的存取控制永遠是 Firestore Rules，不是這組 config。
+// 設計：所有登入者（任何 Google 帳號）讀寫的是同一份共用文件
+// shared/fashionReport，不是各自獨立一份。這是刻意選擇的開放式
+// 共同編輯設計——任何用 Google 帳號登入的人都能修改或刪除這份
+// 共用資料，沒有白名單限制。若之後想收緊存取範圍（例如只給特定
+// 幾個信箱），要同時改這裡的資料路徑邏輯，以及 Firestore Console
+// 的 firestore.rules。
+//
+// 身分驗證本身仍然用 Firebase Authentication 的 Google 登入——
+// 不是像更早一版工具那樣自己用 Math.random() 產生「裝置 ID」當密碼，
+// 身分是 Google/Firebase 簽發、無法偽造的。
 // ────────────────────────────────────────────────────────────────
 
 import { firebaseConfig } from './firebase-config.js';
@@ -25,25 +27,31 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+const SHARED_DOC_PATH = ['shared', 'fashionReport'];
+
 let currentUser = null;
 let unsubscribeSnapshot = null;
-let onRemoteRecordsCb = null;
+let onRemoteUpdateCb = null;
 let onAuthChangeCb = null;
 
-function userDocRef(uid) {
-  return doc(db, 'users', uid);
+function sharedDocRef() {
+  return doc(db, ...SHARED_DOC_PATH);
 }
 
-function subscribeRecords(uid) {
+function subscribeSharedDoc() {
   if (unsubscribeSnapshot) unsubscribeSnapshot();
   unsubscribeSnapshot = onSnapshot(
-    userDocRef(uid),
+    sharedDocRef(),
     snap => {
       if (snap.exists()) {
         const data = snap.data();
-        onRemoteRecordsCb?.(Array.isArray(data.records) ? data.records : []);
+        onRemoteUpdateCb?.({
+          records: Array.isArray(data.records) ? data.records : [],
+          updatedAt: data.updatedAt || null,
+          updatedBy: data.updatedBy || null,
+        });
       } else {
-        onRemoteRecordsCb?.(null); // 雲端尚無這個使用者的資料
+        onRemoteUpdateCb?.(null); // 共用文件還沒建立過
       }
     },
     err => {
@@ -56,15 +64,16 @@ function subscribeRecords(uid) {
 onAuthStateChanged(auth, user => {
   currentUser = user;
   if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-  if (user) subscribeRecords(user.uid);
+  if (user) subscribeSharedDoc();
   onAuthChangeCb?.(user);
 });
 
 async function pushRecords(records) {
   if (!currentUser) throw new Error('尚未登入，無法寫入雲端');
-  await setDoc(userDocRef(currentUser.uid), {
+  await setDoc(sharedDocRef(), {
     records,
     updatedAt: Date.now(),
+    updatedBy: currentUser.displayName || currentUser.email || currentUser.uid,
   });
 }
 
@@ -81,7 +90,7 @@ window.FashionCloud = {
   isSignedIn() { return !!currentUser; },
   get currentUser() { return currentUser; },
   pushRecords,
-  onRemoteUpdate(cb) { onRemoteRecordsCb = cb; },
+  onRemoteUpdate(cb) { onRemoteUpdateCb = cb; },
   onAuthChange(cb) { onAuthChangeCb = cb; cb(currentUser); },
   _onError: null,
 };
