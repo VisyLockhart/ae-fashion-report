@@ -26,6 +26,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
+// signOut() 只登出這個網站的 Firebase 登入狀態，不會登出瀏覽器裡 Google 本身的
+// session；不加這行的話，Google 預設會直接沿用瀏覽器裡現成的帳號、不跳選擇畫面。
+// 加上 prompt: 'select_account' 強制每次登入都跳出帳號選擇器，方便切換測試帳號。
+provider.setCustomParameters({ prompt: 'select_account' });
 
 const SHARED_DOC_PATH = ['shared', 'fashionReport'];
 
