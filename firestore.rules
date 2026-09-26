@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 每個使用者只能讀寫自己那份文件（users/{uid}）。
+    // request.auth.uid 是 Firebase Authentication 簽發、無法偽造的身分，
+    // 不是像上一版工具那樣自己用 Math.random() 產生、知道就能冒充的「裝置 ID」。
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 其他任何路徑一律拒絕（白名單原則，避免忘記設規則的地方變成裸奔）。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

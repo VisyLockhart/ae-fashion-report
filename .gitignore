@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Node（若之後加入建置工具／firebase-tools）
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# 環境變數 / 密鑰（Firebase Web config 本身不是密鑰，但預留給未來可能引入的其他服務）
+.env
+.env.local
+.env.*.local
+
+# Firebase CLI 本機快取（若之後用 firebase deploy 相關指令）
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# 建置輸出（若之後引入 bundler）
+dist/
+build/
